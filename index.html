@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Table</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #d6d6b8;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
+        }
+
+        th, td {
+            border: 1px solid black;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #5d8586;
+            font-weight: bold;
+        }
+
+        .filter-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #76a5d1;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
+        }
+
+        .timer-controls button {
+            padding: 8px 15px;
+            margin-right: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background-color: #608b63;
+            color: white;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        .timer-controls button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .timer-controls button:hover {
+            background-color: #29b830;
+        }
+
+        .filter-dropdown select, .filter-search input, .add-task input[type="text"] {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .add-task button[type="submit"] {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background-color: #008CBA;
+            color: white;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        .add-task button[type="submit"]:hover {
+            background-color: #005F6B;
+        }
+
+        .filter-container, table {
+            margin: 0 auto;
+            max-width: 1300px;
+        }
+
+        #stopButton{
+            background-color: red;
+        }
+
+        .delete-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            background-color: #ff0000;
+            color: white;
+            cursor: pointer;
+        }
+
+        .delete-btn:hover {
+            background-color: #cc0000;
+        }
+    </style>
+</head>
+<body>
+    <div class="filter-container">
+        <div id="timer">00:00:00</div>
+        <div class="timer-controls">
+            <button id="startButton" onclick="startTimer()">Start</button>
+            <button id="stopButton" onclick="stopTimer()" disabled>Stop</button>
+            <button id="resetButton" onclick="resetTimer()">Reset</button>
+        </div>
+        <div class="filter-dropdown">
+            <select id="filterSelect" onchange="filterTable()">
+                <option value="">All Tasks</option>
+                <option value="Meeting">Meeting</option>
+                <option value="Project">Project</option>
+                <option value="Personal Break">Personal Break</option>
+            </select>
+        </div>
+        <div class="filter-search">
+            <input type="text" id="filterInput" oninput="filterTable()" placeholder="Search...">
+        </div>
+        <div class="add-task">
+            <form onsubmit="addTask(event)">
+                <input type="text" id="taskName" placeholder="Task Name">
+                <input type="text" id="taskDescription" placeholder="Task Description">
+                <input type="text" id="taskDuration" placeholder="Task Duration">
+                <button type="submit">Add Task</button>
+            </form>
+        </div>
+    </div>
+
+    <table id="taskTable">
+        <thead>
+            <tr>
+                <th>Task</th>
+                <th>Description</th>
+                <th>Duration</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Table body will be generated dynamically -->
+        </tbody>
+    </table>
+
+    <script>
+        const task = [
+            {
+                Task: "Meeting",
+                Description: "client meeting",
+                Duration: '00:50:00'
+            },
+            {
+                Task: "Project",
+                Description: "Developing",
+                Duration: '01:50:00'
+            },
+            {
+                Task: "Personal Break",
+                Description: "-",
+                Duration: '0:20:00'
+            },
+            {
+                Task: "Meeting",
+                Description: "daily scrum",
+                Duration: '00:30:00'
+            }
+        ];
+
+        let timerInterval;
+        let totalSeconds = 0;
+
+        // Function to populate the table
+        function populateTable(data) {
+            const tableBody = document.querySelector('#taskTable tbody');
+            tableBody.innerHTML = ''; // Clear previous rows
+            data.forEach(task => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${task.Task}</td>
+                    <td>${task.Description}</td>
+                    <td>${task.Duration}</td>
+                    <td><button class="delete-btn" onclick="deleteTask(event)">Delete</button></td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        // Call the function to populate the table initially
+        populateTable(task);
+
+        // Function to start the timer
+        function startTimer() {
+            timerInterval = setInterval(updateTimer, 1000);
+            document.getElementById('startButton').disabled = true;
+            document.getElementById('stopButton').disabled = false;
+        }
+
+        // Function to stop the timer
+        function stopTimer() {
+            clearInterval(timerInterval);
+            document.getElementById('startButton').disabled = false;
+            document.getElementById('stopButton').disabled = true;
+        }
+
+        // Function to reset the timer
+        function resetTimer() {
+            clearInterval(timerInterval);
+            totalSeconds = 0;
+            updateTimerDisplay();
+            document.getElementById('startButton').disabled = false;
+            document.getElementById('stopButton').disabled = true;
+        }
+
+        // Function to update the timer display
+        function updateTimer() {
+            totalSeconds++;
+            updateTimerDisplay();
+        }
+
+        // Function to update the timer display with the current time
+        function updateTimerDisplay() {
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            const timerElement = document.getElementById('timer');
+            timerElement.textContent = `${padZero(hours)}:${padZero(minutes)}:${padZero(seconds)}`;
+        }
+
+        // Function to pad single digit numbers with a leading zero
+        function padZero(num) {
+            return num < 10 ? '0' + num : num;
+        }
+
+        // Function to filter the table based on selected task and search input
+        function filterTable() {
+            const selectedTask = document.getElementById('filterSelect').value.toLowerCase();
+            const searchText = document.getElementById('filterInput').value.toLowerCase();
+            const filteredData = task.filter(item => {
+                return (selectedTask === '' || item.Task.toLowerCase() === selectedTask) &&
+                       (searchText === '' || item.Task.toLowerCase().includes(searchText) || item.Description.toLowerCase().includes(searchText));
+            });
+            populateTable(filteredData);
+        }
+
+        // Function to add a new task
+        function addTask(event) {
+            event.preventDefault();
+            const taskName = document.getElementById('taskName').value.trim();
+            const taskDescription = document.getElementById('taskDescription').value.trim();
+            const taskDuration = document.getElementById('taskDuration').value.trim();
+            if (taskName && taskDescription && taskDuration) {
+                task.push({
+                    Task: taskName,
+                    Description: taskDescription,
+                    Duration: taskDuration
+                });
+                populateTable(task);
+                document.getElementById('taskName').value = '';
+                document.getElementById('taskDescription').value = '';
+                document.getElementById('taskDuration').value = '';
+            } else {
+                alert("Please enter task name, description, and duration.");
+            }
+        }
+
+        // Function to delete a task
+        function deleteTask(event) {
+            const rowIndex = event.target.closest('tr').rowIndex;
+            task.splice(rowIndex - 1, 1); // Adjust for header row
+            populateTable(task);
+        }
+    </script>
+</body>
+</html>
+
